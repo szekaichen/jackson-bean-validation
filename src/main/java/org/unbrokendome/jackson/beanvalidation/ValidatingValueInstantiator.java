@@ -20,9 +20,11 @@ import javax.validation.ValidatorFactory;
 import javax.validation.executable.ExecutableValidator;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -185,8 +187,18 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
         ExecutableValidator executableValidator = validatorFactory.getValidator().forExecutables();
 
         if (creatorMember instanceof Constructor) {
-            return (Set) executableValidator.validateConstructorParameters(
-                    (Constructor<?>) creatorMember, args);
+            Map<String, Object> hints = new HashMap<>(args.length);
+            Constructor constructor = (Constructor) creatorMember;
+            Field[] declaredFields = constructor.getDeclaringClass().getDeclaredFields();
+            if (declaredFields.length >= args.length) {
+                for (int i = 0; i < args.length; i++) {
+                    hints.put(declaredFields[i].getName(), args[i]);
+                }
+            }
+            ValidationContextHolder.hints.set(hints);
+            Set violations = executableValidator.validateConstructorParameters(constructor, args);
+            ValidationContextHolder.hints.remove();
+            return violations;
 
         } else if (creatorMember instanceof Method) {
             // Bean validation doesn't support parameter validation for static methods :-(
