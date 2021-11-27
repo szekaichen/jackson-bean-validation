@@ -221,23 +221,17 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
             Path.Node parameterNode, int parameterIndex,
             DeserializationContext context
     ) {
-        SettableBeanProperty[] constructorArguments = getFromObjectArguments(context.getConfig());
+        String propertyName = getFromObjectArguments(context.getConfig())[parameterIndex].getName();
 
         if (features.isEnabled(BeanValidationFeature.MAP_CREATOR_VIOLATIONS_TO_PROPERTY_VIOLATIONS)) {
 
             PathBuilder pathBuilder = PathBuilder.create();
 
-            if (features.isEnabled(BeanValidationFeature.REPORT_BEAN_PROPERTY_PATHS_IN_VIOLATIONS)) {
-                pathBuilder.appendBeanNode().appendProperty(parameterNode.getName());
-
+            if (features.isEnabled(BeanValidationFeature.REPORT_BEAN_PROPERTY_PATHS_IN_VIOLATIONS) ||
+                    propertyName.equals(parameterNode.getName())) {
+                pathBuilder.appendNode(parameterNode);
             } else {
-                String propertyName = constructorArguments[parameterIndex].getName();
-
-                if (propertyName.equals(parameterNode.getName())) {
-                    pathBuilder.appendNode(parameterNode);
-                } else {
-                    pathBuilder.appendBeanNode().appendProperty(propertyName);
-                }
+                pathBuilder.appendBeanNode().appendProperty(propertyName);
             }
             Path newPath = pathBuilder
                     .appendPath(PathUtils.dropUntil(violation.getPropertyPath(), ElementKind.PARAMETER))
@@ -249,7 +243,7 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
             Path newPath = PathBuilder.create()
                     .appendPath(PathUtils.takeUntil(violation.getPropertyPath(), ElementKind.CONSTRUCTOR))
-                    .appendParameter(constructorArguments[parameterIndex].getName(), parameterIndex)
+                    .appendParameter(propertyName, parameterIndex)
                     .appendPath(PathUtils.dropUntil(violation.getPropertyPath(), ElementKind.PARAMETER))
                     .build();
             return ConstraintViolationUtils.withNewPath(violation, newPath);
