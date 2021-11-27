@@ -27,8 +27,6 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
@@ -227,22 +225,21 @@ class ValidatingValueInstantiator extends AbstractDelegatingValueInstantiator {
 
         if (features.isEnabled(BeanValidationFeature.MAP_CREATOR_VIOLATIONS_TO_PROPERTY_VIOLATIONS)) {
 
-            String propertyName;
+            PathBuilder pathBuilder = PathBuilder.create();
 
             if (features.isEnabled(BeanValidationFeature.REPORT_BEAN_PROPERTY_PATHS_IN_VIOLATIONS)) {
-                propertyName = parameterNode.getName();
+                pathBuilder.appendBeanNode().appendProperty(parameterNode.getName());
+
             } else {
-                propertyName = constructorArguments[parameterIndex].getName();
-            }
+                String propertyName = constructorArguments[parameterIndex].getName();
 
-            Matcher containerIndex = Pattern.compile("\\[.*\\]").matcher(parameterNode.toString());
-            if (containerIndex.find()) {
-                propertyName += containerIndex.group();
+                if (propertyName.equals(parameterNode.getName())) {
+                    pathBuilder.appendNode(parameterNode);
+                } else {
+                    pathBuilder.appendBeanNode().appendProperty(propertyName);
+                }
             }
-
-            Path newPath = PathBuilder.create()
-                    .appendBeanNode()
-                    .appendProperty(propertyName)
+            Path newPath = pathBuilder
                     .appendPath(PathUtils.dropUntil(violation.getPropertyPath(), ElementKind.PARAMETER))
                     .build();
 
